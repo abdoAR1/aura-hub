@@ -1,0 +1,294 @@
+-- ==========================================
+-- SERVICES & SETUP
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+-- Fetch Remotes safely
+local ChallengeRemote = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("ChallengeService"):WaitForChild("RF"):WaitForChild("ClaimReward")
+local SeasonRemote = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("SeasonService"):WaitForChild("RF"):WaitForChild("RequestRankedReward")
+
+-- State Variables
+local autoTokens = false
+local autoSpins = false
+local tokenX = -1
+local timeRemaining = -1
+
+-- ==========================================
+-- AESTHETIC UI CREATION
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+local successUI = pcall(function()
+    if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
+end)
+if not successUI then ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end
+
+-- Main Glass Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "AuraHub_V2"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MainFrame.BackgroundTransparency = 0.15 
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
+MainFrame.Size = UDim2.new(0, 280, 0, 40) -- Starts minimized for intro animation
+MainFrame.ClipsDescendants = true -- CRUCIAL: Hides items cleanly when minimized
+MainFrame.Active = true
+MainFrame.Draggable = true 
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = MainFrame
+UIStroke.Color = Color3.fromRGB(100, 150, 255)
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.3
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(0, 200, 0, 40)
+Title.Font = Enum.Font.GothamBlack
+Title.Text = "AURA HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Minimize Button
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = MainFrame
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.Position = UDim2.new(1, -40, 0, 5)
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 24
+
+-- Toggle 1: Tokens
+local TokensBtn = Instance.new("TextButton")
+TokensBtn.Parent = MainFrame
+TokensBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+TokensBtn.Position = UDim2.new(0, 15, 0, 55)
+TokensBtn.Size = UDim2.new(0, 250, 0, 35)
+TokensBtn.Font = Enum.Font.GothamBold
+TokensBtn.Text = "Claim tokens: OFF"
+TokensBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
+TokensBtn.TextSize = 13
+Instance.new("UICorner", TokensBtn).CornerRadius = UDim.new(0, 6)
+
+-- Toggle 2: Spins
+local SpinsBtn = Instance.new("TextButton")
+SpinsBtn.Parent = MainFrame
+SpinsBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+SpinsBtn.Position = UDim2.new(0, 15, 0, 100)
+SpinsBtn.Size = UDim2.new(0, 250, 0, 35)
+SpinsBtn.Font = Enum.Font.GothamBold
+SpinsBtn.Text = "Claim spins: OFF"
+SpinsBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
+SpinsBtn.TextSize = 13
+Instance.new("UICorner", SpinsBtn).CornerRadius = UDim.new(0, 6)
+
+-- Rank Input for Spins
+local RankInput = Instance.new("TextBox")
+RankInput.Parent = MainFrame
+RankInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+RankInput.Position = UDim2.new(0, 15, 0, 145)
+RankInput.Size = UDim2.new(0, 250, 0, 30)
+RankInput.Font = Enum.Font.Gotham
+RankInput.PlaceholderText = "Target Rank for Spins (e.g., 1)"
+RankInput.Text = "1"
+RankInput.TextColor3 = Color3.fromRGB(150, 200, 255)
+RankInput.TextSize = 12
+Instance.new("UICorner", RankInput).CornerRadius = UDim.new(0, 6)
+
+-- Farm Timer Input
+local TimerInput = Instance.new("TextBox")
+TimerInput.Parent = MainFrame
+TimerInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+TimerInput.Position = UDim2.new(0, 15, 0, 185)
+TimerInput.Size = UDim2.new(0, 250, 0, 30)
+TimerInput.Font = Enum.Font.Gotham
+TimerInput.PlaceholderText = "Farm Time in Minutes (Optional)..."
+TimerInput.Text = ""
+TimerInput.TextColor3 = Color3.fromRGB(150, 200, 255)
+TimerInput.TextSize = 12
+Instance.new("UICorner", TimerInput).CornerRadius = UDim.new(0, 6)
+
+-- Timer Display
+local TimerLabel = Instance.new("TextLabel")
+TimerLabel.Parent = MainFrame
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Position = UDim2.new(0, 15, 0, 220)
+TimerLabel.Size = UDim2.new(0, 250, 0, 20)
+TimerLabel.Font = Enum.Font.Gotham
+TimerLabel.Text = "Timer: Infinite"
+TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+TimerLabel.TextSize = 11
+
+-- Warning Note (Fixed Font for Arceus X)
+local NoteLabel = Instance.new("TextLabel")
+NoteLabel.Parent = MainFrame
+NoteLabel.BackgroundTransparency = 1
+NoteLabel.Position = UDim2.new(0, 15, 0, 245)
+NoteLabel.Size = UDim2.new(0, 250, 0, 40)
+NoteLabel.Font = Enum.Font.Gotham 
+NoteLabel.Text = "⚠️ Note: Spins won't work if you are below Bronze 2"
+NoteLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+NoteLabel.TextSize = 11
+NoteLabel.TextWrapped = true
+
+-- Discord Link (Copyable TextBox)
+local DiscordBox = Instance.new("TextBox")
+DiscordBox.Parent = MainFrame
+DiscordBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+DiscordBox.Position = UDim2.new(0, 15, 0, 290)
+DiscordBox.Size = UDim2.new(0, 250, 0, 30)
+DiscordBox.Font = Enum.Font.GothamBold
+DiscordBox.Text = "https://discord.gg/WRCa2VNhem"
+DiscordBox.TextColor3 = Color3.fromRGB(100, 150, 255)
+DiscordBox.TextSize = 11
+DiscordBox.ClearTextOnFocus = false
+DiscordBox.TextEditable = false 
+Instance.new("UICorner", DiscordBox).CornerRadius = UDim.new(0, 6)
+
+-- ==========================================
+-- ANIMATIONS & LOGIC
+-- ==========================================
+local isMinimized = false
+local fullHeight = 335
+
+-- Opening Animation (Drops down)
+TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
+
+-- Minimize Button Logic
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        MinimizeBtn.Text = "+"
+        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, 40)}):Play()
+    else
+        MinimizeBtn.Text = "-"
+        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
+    end
+end)
+
+-- Smooth Color Transition Function
+local function tweenColor(object, targetColor, targetTextColor)
+    TweenService:Create(object, TweenInfo.new(0.3), {BackgroundColor3 = targetColor, TextColor3 = targetTextColor}):Play()
+end
+
+-- Timer Setup & Management
+local function startTimerIfNeeded()
+    local inputMinutes = tonumber(TimerInput.Text)
+    -- Only start a new timer if one isn't already running
+    if inputMinutes and inputMinutes > 0 and timeRemaining <= 0 then
+        timeRemaining = inputMinutes * 60
+        TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    end
+end
+
+local function formatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d", mins, secs)
+end
+
+local function stopAllFarming()
+    autoTokens = false
+    autoSpins = false
+    tweenColor(TokensBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    TokensBtn.Text = "Claim tokens: OFF"
+    tweenColor(SpinsBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    SpinsBtn.Text = "Claim spins: OFF"
+    UIStroke.Color = Color3.fromRGB(100, 100, 255)
+    TimerLabel.Text = "Farm Complete!"
+    TimerLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+    timeRemaining = -1
+end
+
+-- Tokens Toggle Logic
+TokensBtn.MouseButton1Click:Connect(function()
+    autoTokens = not autoTokens
+    if autoTokens then
+        TokensBtn.Text = "Claim tokens: ON"
+        tweenColor(TokensBtn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
+        UIStroke.Color = Color3.fromRGB(100, 255, 150)
+        startTimerIfNeeded()
+    else
+        TokensBtn.Text = "Claim tokens: OFF"
+        tweenColor(TokensBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+        if not autoSpins then UIStroke.Color = Color3.fromRGB(100, 150, 255) end
+    end
+end)
+
+-- Spins Toggle Logic
+SpinsBtn.MouseButton1Click:Connect(function()
+    autoSpins = not autoSpins
+    if autoSpins then
+        SpinsBtn.Text = "Claim spins: ON"
+        tweenColor(SpinsBtn, Color3.fromRGB(100, 200, 255), Color3.fromRGB(20, 40, 60))
+        UIStroke.Color = Color3.fromRGB(100, 200, 255)
+        startTimerIfNeeded()
+    else
+        SpinsBtn.Text = "Claim spins: OFF"
+        tweenColor(SpinsBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+        if not autoTokens then UIStroke.Color = Color3.fromRGB(100, 150, 255) end
+    end
+end)
+
+-- ==========================================
+-- BACKGROUND LOOPS
+-- ==========================================
+
+-- Master Timer Loop
+task.spawn(function()
+    while task.wait(1) do
+        if (autoTokens or autoSpins) and timeRemaining > 0 then
+            timeRemaining = timeRemaining - 1
+            TimerLabel.Text = "Timer: " .. formatTime(timeRemaining)
+            if timeRemaining <= 0 then
+                stopAllFarming()
+            end
+        elseif (autoTokens or autoSpins) and timeRemaining <= 0 then
+            TimerLabel.Text = "Timer: Infinite"
+            TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
+    end
+end)
+
+-- Loop 1: Claim Tokens
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoTokens then
+            local currentX = tokenX
+            tokenX = tokenX - 1
+            
+            task.spawn(function()
+                pcall(function()
+                    ChallengeRemote:InvokeServer(currentX)
+                end)
+            end)
+        end
+    end
+end)
+
+-- Loop 2: Claim Spins
+task.spawn(function()
+    while task.wait(1) do
+        if autoSpins then
+            local targetRank = tonumber(RankInput.Text) or 1 
+            
+            task.spawn(function()
+                pcall(function()
+                    SeasonRemote:InvokeServer(targetRank)
+                end)
+            end)
+        end
+    end
+end)
