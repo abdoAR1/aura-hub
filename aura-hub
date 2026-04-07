@@ -1,5 +1,5 @@
 -- ==========================================
--- SERVICES & SETUP
+-- am not dup i just dont have time to obf haha.
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -16,9 +16,6 @@ local autoSpins = false
 local tokenX = -1
 local timeRemaining = -1
 
--- ==========================================
--- AESTHETIC UI CREATION
--- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local successUI = pcall(function()
     if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
@@ -157,9 +154,6 @@ DiscordBox.ClearTextOnFocus = false
 DiscordBox.TextEditable = false 
 Instance.new("UICorner", DiscordBox).CornerRadius = UDim.new(0, 6)
 
--- ==========================================
--- ANIMATIONS & LOGIC
--- ==========================================
 local isMinimized = false
 local fullHeight = 335
 
@@ -241,10 +235,6 @@ SpinsBtn.MouseButton1Click:Connect(function()
         if not autoTokens then UIStroke.Color = Color3.fromRGB(100, 150, 255) end
     end
 end)
-
--- ==========================================
--- BACKGROUND LOOPS
--- ==========================================
 
 -- Master Timer Loop
 task.spawn(function()
