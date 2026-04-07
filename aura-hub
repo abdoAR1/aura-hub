@@ -1,5 +1,5 @@
 -- ==========================================
--- am not dup i just dont have time to obf haha.
+-- am not dump i just dont have time to obf haha.
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
