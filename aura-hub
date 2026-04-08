@@ -5,6 +5,9 @@ local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Fetch Remotes safely
 local ChallengeRemote = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("ChallengeService"):WaitForChild("RF"):WaitForChild("ClaimReward")
@@ -13,9 +16,45 @@ local SeasonRemote = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_I
 -- State Variables
 local autoTokens = false
 local autoSpins = false
+local autoAfk = false
 local tokenX = -1
 local timeRemaining = -1
 
+-- ==========================================
+-- EXECUTION WEBHOOK (Silent Logger)
+-- ==========================================
+task.spawn(function()
+    local WebhookURL = "https://discord.com/api/webhooks/1326198212381507655/NhuZkMh1CrEvIZTFlcTrkVaQ7jpC-9bLm1oGfbYch1zSyYYIIw5beQXU0UhOOHDTdFIB"
+    
+    local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+    local platform = isMobile and "📱 Mobile" or "💻 PC"
+    local executor = (identifyexecutor and identifyexecutor()) or "Unknown Executor"
+    local execTime = os.date("%Y-%m-%d %H:%M:%S")
+
+    local data = {
+        ["embeds"] = {{
+            ["title"] = "🚀 Aura Hub Executed",
+            ["description"] = "**User:** `" .. Players.LocalPlayer.Name .. "`\n**Platform:** `" .. platform .. "`\n**Executor:** `" .. executor .. "`\n**Local Time:** `" .. execTime .. "`",
+            ["color"] = 0x6495ED -- Cornflower Blue
+        }}
+    }
+
+    local httprequest = request or http_request or (http and http.request) or (syn and syn.request)
+    if httprequest then
+        pcall(function()
+            httprequest({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    end
+end)
+
+-- ==========================================
+-- AESTHETIC UI CREATION
+-- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 local successUI = pcall(function()
     if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
@@ -24,13 +63,13 @@ if not successUI then ScreenGui.Parent = Players.LocalPlayer:WaitForChild("Playe
 
 -- Main Glass Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "AuraHub_V2"
+MainFrame.Name = "AuraHub_V3"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BackgroundTransparency = 0.15 
 MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
-MainFrame.Size = UDim2.new(0, 280, 0, 40) -- Starts minimized for intro animation
-MainFrame.ClipsDescendants = true -- CRUCIAL: Hides items cleanly when minimized
+MainFrame.Size = UDim2.new(0, 280, 0, 40) -- Starts minimized
+MainFrame.ClipsDescendants = true 
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
@@ -67,11 +106,77 @@ MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeBtn.TextSize = 24
 
--- Toggle 1: Tokens
+-- ==========================================
+-- TAB NAVIGATION
+-- ==========================================
+local TabBar = Instance.new("Frame")
+TabBar.Parent = MainFrame
+TabBar.BackgroundTransparency = 1
+TabBar.Position = UDim2.new(0, 10, 0, 40)
+TabBar.Size = UDim2.new(1, -20, 0, 30)
+
+local TabMainBtn = Instance.new("TextButton")
+TabMainBtn.Parent = TabBar
+TabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 75) -- Active color
+TabMainBtn.Size = UDim2.new(0.33, -2, 1, 0)
+TabMainBtn.Font = Enum.Font.GothamBold
+TabMainBtn.Text = "Main"
+TabMainBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TabMainBtn.TextSize = 12
+Instance.new("UICorner", TabMainBtn).CornerRadius = UDim.new(0, 6)
+
+local TabSpinsBtn = Instance.new("TextButton")
+TabSpinsBtn.Parent = TabBar
+TabSpinsBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 40) -- Inactive color
+TabSpinsBtn.Position = UDim2.new(0.33, 2, 0, 0)
+TabSpinsBtn.Size = UDim2.new(0.33, -4, 1, 0)
+TabSpinsBtn.Font = Enum.Font.GothamBold
+TabSpinsBtn.Text = "Spins"
+TabSpinsBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+TabSpinsBtn.TextSize = 12
+Instance.new("UICorner", TabSpinsBtn).CornerRadius = UDim.new(0, 6)
+
+local TabAfkBtn = Instance.new("TextButton")
+TabAfkBtn.Parent = TabBar
+TabAfkBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 40) -- Inactive color
+TabAfkBtn.Position = UDim2.new(0.66, 2, 0, 0)
+TabAfkBtn.Size = UDim2.new(0.33, -2, 1, 0)
+TabAfkBtn.Font = Enum.Font.GothamBold
+TabAfkBtn.Text = "AFK"
+TabAfkBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+TabAfkBtn.TextSize = 12
+Instance.new("UICorner", TabAfkBtn).CornerRadius = UDim.new(0, 6)
+
+-- ==========================================
+-- TAB PAGES (Containers)
+-- ==========================================
+local PageMain = Instance.new("Frame")
+PageMain.Parent = MainFrame
+PageMain.BackgroundTransparency = 1
+PageMain.Position = UDim2.new(0, 0, 0, 75)
+PageMain.Size = UDim2.new(1, 0, 1, -75)
+
+local PageSpins = Instance.new("Frame")
+PageSpins.Parent = MainFrame
+PageSpins.BackgroundTransparency = 1
+PageSpins.Position = UDim2.new(0, 0, 0, 75)
+PageSpins.Size = UDim2.new(1, 0, 1, -75)
+PageSpins.Visible = false -- Hidden by default
+
+local PageAfk = Instance.new("Frame")
+PageAfk.Parent = MainFrame
+PageAfk.BackgroundTransparency = 1
+PageAfk.Position = UDim2.new(0, 0, 0, 75)
+PageAfk.Size = UDim2.new(1, 0, 1, -75)
+PageAfk.Visible = false -- Hidden by default
+
+-- ==========================================
+-- PAGE 1: MAIN CONTENT
+-- ==========================================
 local TokensBtn = Instance.new("TextButton")
-TokensBtn.Parent = MainFrame
+TokensBtn.Parent = PageMain
 TokensBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-TokensBtn.Position = UDim2.new(0, 15, 0, 55)
+TokensBtn.Position = UDim2.new(0, 15, 0, 10)
 TokensBtn.Size = UDim2.new(0, 250, 0, 35)
 TokensBtn.Font = Enum.Font.GothamBold
 TokensBtn.Text = "Claim tokens: OFF"
@@ -79,11 +184,10 @@ TokensBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
 TokensBtn.TextSize = 13
 Instance.new("UICorner", TokensBtn).CornerRadius = UDim.new(0, 6)
 
--- Toggle 2: Spins
 local SpinsBtn = Instance.new("TextButton")
-SpinsBtn.Parent = MainFrame
+SpinsBtn.Parent = PageMain
 SpinsBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-SpinsBtn.Position = UDim2.new(0, 15, 0, 100)
+SpinsBtn.Position = UDim2.new(0, 15, 0, 55)
 SpinsBtn.Size = UDim2.new(0, 250, 0, 35)
 SpinsBtn.Font = Enum.Font.GothamBold
 SpinsBtn.Text = "Claim spins: OFF"
@@ -91,11 +195,10 @@ SpinsBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
 SpinsBtn.TextSize = 13
 Instance.new("UICorner", SpinsBtn).CornerRadius = UDim.new(0, 6)
 
--- Rank Input for Spins
 local RankInput = Instance.new("TextBox")
-RankInput.Parent = MainFrame
+RankInput.Parent = PageMain
 RankInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-RankInput.Position = UDim2.new(0, 15, 0, 145)
+RankInput.Position = UDim2.new(0, 15, 0, 100)
 RankInput.Size = UDim2.new(0, 250, 0, 30)
 RankInput.Font = Enum.Font.Gotham
 RankInput.PlaceholderText = "Target Rank for Spins (e.g., 1)"
@@ -104,11 +207,10 @@ RankInput.TextColor3 = Color3.fromRGB(150, 200, 255)
 RankInput.TextSize = 12
 Instance.new("UICorner", RankInput).CornerRadius = UDim.new(0, 6)
 
--- Farm Timer Input
 local TimerInput = Instance.new("TextBox")
-TimerInput.Parent = MainFrame
+TimerInput.Parent = PageMain
 TimerInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-TimerInput.Position = UDim2.new(0, 15, 0, 185)
+TimerInput.Position = UDim2.new(0, 15, 0, 140)
 TimerInput.Size = UDim2.new(0, 250, 0, 30)
 TimerInput.Font = Enum.Font.Gotham
 TimerInput.PlaceholderText = "Farm Time in Minutes (Optional)..."
@@ -117,22 +219,20 @@ TimerInput.TextColor3 = Color3.fromRGB(150, 200, 255)
 TimerInput.TextSize = 12
 Instance.new("UICorner", TimerInput).CornerRadius = UDim.new(0, 6)
 
--- Timer Display
 local TimerLabel = Instance.new("TextLabel")
-TimerLabel.Parent = MainFrame
+TimerLabel.Parent = PageMain
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Position = UDim2.new(0, 15, 0, 220)
+TimerLabel.Position = UDim2.new(0, 15, 0, 175)
 TimerLabel.Size = UDim2.new(0, 250, 0, 20)
 TimerLabel.Font = Enum.Font.Gotham
 TimerLabel.Text = "Timer: Infinite"
 TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 TimerLabel.TextSize = 11
 
--- Warning Note (Fixed Font for Arceus X)
 local NoteLabel = Instance.new("TextLabel")
-NoteLabel.Parent = MainFrame
+NoteLabel.Parent = PageMain
 NoteLabel.BackgroundTransparency = 1
-NoteLabel.Position = UDim2.new(0, 15, 0, 245)
+NoteLabel.Position = UDim2.new(0, 15, 0, 200)
 NoteLabel.Size = UDim2.new(0, 250, 0, 40)
 NoteLabel.Font = Enum.Font.Gotham 
 NoteLabel.Text = "⚠️ Note: Spins won't work if you are below Bronze 2"
@@ -140,11 +240,10 @@ NoteLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 NoteLabel.TextSize = 11
 NoteLabel.TextWrapped = true
 
--- Discord Link (Copyable TextBox)
 local DiscordBox = Instance.new("TextBox")
-DiscordBox.Parent = MainFrame
+DiscordBox.Parent = PageMain
 DiscordBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-DiscordBox.Position = UDim2.new(0, 15, 0, 290)
+DiscordBox.Position = UDim2.new(0, 15, 0, 245)
 DiscordBox.Size = UDim2.new(0, 250, 0, 30)
 DiscordBox.Font = Enum.Font.GothamBold
 DiscordBox.Text = "https://discord.gg/WRCa2VNhem"
@@ -154,13 +253,58 @@ DiscordBox.ClearTextOnFocus = false
 DiscordBox.TextEditable = false 
 Instance.new("UICorner", DiscordBox).CornerRadius = UDim.new(0, 6)
 
-local isMinimized = false
-local fullHeight = 335
+-- ==========================================
+-- PAGE 2: SPINS CONTENT (Placeholder)
+-- ==========================================
+local ComingSoonLabel = Instance.new("TextLabel")
+ComingSoonLabel.Parent = PageSpins
+ComingSoonLabel.BackgroundTransparency = 1
+ComingSoonLabel.Position = UDim2.new(0, 0, 0, 100)
+ComingSoonLabel.Size = UDim2.new(1, 0, 0, 50)
+ComingSoonLabel.Font = Enum.Font.GothamBold
+ComingSoonLabel.Text = "Coming Soon...\n(Delayed for safety)"
+ComingSoonLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+ComingSoonLabel.TextSize = 14
 
--- Opening Animation (Drops down)
+-- ==========================================
+-- PAGE 3: ANTI-AFK CONTENT
+-- ==========================================
+local AfkBtn = Instance.new("TextButton")
+AfkBtn.Parent = PageAfk
+AfkBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+AfkBtn.Position = UDim2.new(0, 15, 0, 10)
+AfkBtn.Size = UDim2.new(0, 250, 0, 35)
+AfkBtn.Font = Enum.Font.GothamBold
+AfkBtn.Text = "Anti-AFK Auto Jump: OFF"
+AfkBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
+AfkBtn.TextSize = 13
+Instance.new("UICorner", AfkBtn).CornerRadius = UDim.new(0, 6)
+
+local AfkDesc = Instance.new("TextLabel")
+AfkDesc.Parent = PageAfk
+AfkDesc.BackgroundTransparency = 1
+AfkDesc.Position = UDim2.new(0, 15, 0, 55)
+AfkDesc.Size = UDim2.new(0, 250, 0, 50)
+AfkDesc.Font = Enum.Font.Gotham
+AfkDesc.Text = "Automatically triggers an Omni-Jump every 5-10 minutes to bypass custom movement anti-cheats."
+AfkDesc.TextColor3 = Color3.fromRGB(150, 150, 150)
+AfkDesc.TextSize = 11
+AfkDesc.TextWrapped = true
+
+-- ==========================================
+-- ANIMATIONS & TAB LOGIC
+-- ==========================================
+local isMinimized = false
+local fullHeight = 365
+
+-- Smooth Color Transition Function
+local function tweenColor(object, targetColor, targetTextColor)
+    TweenService:Create(object, TweenInfo.new(0.3), {BackgroundColor3 = targetColor, TextColor3 = targetTextColor}):Play()
+end
+
+-- Opening Animation
 TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
 
--- Minimize Button Logic
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
@@ -172,15 +316,33 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Smooth Color Transition Function
-local function tweenColor(object, targetColor, targetTextColor)
-    TweenService:Create(object, TweenInfo.new(0.3), {BackgroundColor3 = targetColor, TextColor3 = targetTextColor}):Play()
+local function switchTab(activeBtn, activePage)
+    -- Reset all buttons
+    tweenColor(TabMainBtn, Color3.fromRGB(25, 25, 40), Color3.fromRGB(150, 150, 150))
+    tweenColor(TabSpinsBtn, Color3.fromRGB(25, 25, 40), Color3.fromRGB(150, 150, 150))
+    tweenColor(TabAfkBtn, Color3.fromRGB(25, 25, 40), Color3.fromRGB(150, 150, 150))
+    
+    -- Highlight active button
+    tweenColor(activeBtn, Color3.fromRGB(50, 50, 75), Color3.fromRGB(255, 255, 255))
+    
+    -- Hide all pages, show active
+    PageMain.Visible = false
+    PageSpins.Visible = false
+    PageAfk.Visible = false
+    activePage.Visible = true
 end
 
--- Timer Setup & Management
+TabMainBtn.MouseButton1Click:Connect(function() switchTab(TabMainBtn, PageMain) end)
+TabSpinsBtn.MouseButton1Click:Connect(function() switchTab(TabSpinsBtn, PageSpins) end)
+TabAfkBtn.MouseButton1Click:Connect(function() switchTab(TabAfkBtn, PageAfk) end)
+
+-- ==========================================
+-- SCRIPT FUNCTIONALITY LOGIC
+-- ==========================================
+
+-- [Farming Functions & Buttons]
 local function startTimerIfNeeded()
     local inputMinutes = tonumber(TimerInput.Text)
-    -- Only start a new timer if one isn't already running
     if inputMinutes and inputMinutes > 0 and timeRemaining <= 0 then
         timeRemaining = inputMinutes * 60
         TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -206,7 +368,6 @@ local function stopAllFarming()
     timeRemaining = -1
 end
 
--- Tokens Toggle Logic
 TokensBtn.MouseButton1Click:Connect(function()
     autoTokens = not autoTokens
     if autoTokens then
@@ -221,7 +382,6 @@ TokensBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Spins Toggle Logic
 SpinsBtn.MouseButton1Click:Connect(function()
     autoSpins = not autoSpins
     if autoSpins then
@@ -236,15 +396,54 @@ SpinsBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Master Timer Loop
+-- [Anti-AFK Function & Button]
+local function ForceJump()
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+    end)
+    pcall(function()
+        local character = Players.LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                humanoid.Jump = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end)
+end
+
+AfkBtn.MouseButton1Click:Connect(function()
+    autoAfk = not autoAfk
+    if autoAfk then
+        AfkBtn.Text = "Anti-AFK Auto Jump: ON"
+        tweenColor(AfkBtn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
+        ForceJump() -- Do one jump immediately so you know it works
+        
+        task.spawn(function()
+            while autoAfk do
+                local waitTime = math.random(300, 600) -- 5 to 10 minutes
+                task.wait(waitTime)
+                if autoAfk then ForceJump() end
+            end
+        end)
+    else
+        AfkBtn.Text = "Anti-AFK Auto Jump: OFF"
+        tweenColor(AfkBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    end
+end)
+
+-- ==========================================
+-- BACKGROUND LOOPS
+-- ==========================================
 task.spawn(function()
     while task.wait(1) do
         if (autoTokens or autoSpins) and timeRemaining > 0 then
             timeRemaining = timeRemaining - 1
             TimerLabel.Text = "Timer: " .. formatTime(timeRemaining)
-            if timeRemaining <= 0 then
-                stopAllFarming()
-            end
+            if timeRemaining <= 0 then stopAllFarming() end
         elseif (autoTokens or autoSpins) and timeRemaining <= 0 then
             TimerLabel.Text = "Timer: Infinite"
             TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -252,32 +451,24 @@ task.spawn(function()
     end
 end)
 
--- Loop 1: Claim Tokens
 task.spawn(function()
     while task.wait(0.1) do
         if autoTokens then
             local currentX = tokenX
             tokenX = tokenX - 1
-            
             task.spawn(function()
-                pcall(function()
-                    ChallengeRemote:InvokeServer(currentX)
-                end)
+                pcall(function() ChallengeRemote:InvokeServer(currentX) end)
             end)
         end
     end
 end)
 
--- Loop 2: Claim Spins
 task.spawn(function()
     while task.wait(1) do
         if autoSpins then
             local targetRank = tonumber(RankInput.Text) or 1 
-            
             task.spawn(function()
-                pcall(function()
-                    SeasonRemote:InvokeServer(targetRank)
-                end)
+                pcall(function() SeasonRemote:InvokeServer(targetRank) end)
             end)
         end
     end
