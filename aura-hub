@@ -1,7 +1,5 @@
-
--- am not dump i just dont have time to obf haha.
 -- ==========================================
--- AURA HUB V13 - Stealth HWID Logger
+-- AURA HUB V13.1 - GET/Webhook Repairs
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -9,20 +7,26 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 
--- ⚠️ PASTE YOUR RAW GITHUB URL HERE ⚠️
+-- Your raw GitHub link
 local GitHubRawURL = "https://raw.githubusercontent.com/abdoAR1/whitelist.txt/refs/heads/main/whitelist.txt"
 
--- Get Hardware ID (Safely handles different executors)
+-- Safely Fetch Hardware ID
 local userHWID = "Unknown_HWID"
 pcall(function()
-    userHWID = (gethwid and gethwid()) or game:GetService("RbxAnalyticsService"):GetClientId()
+    if gethwid then
+        userHWID = gethwid()
+    else
+        userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
+    end
 end)
+print("Detected HWID: " .. tostring(userHWID))
 
 -- ==========================================
--- EXECUTION WEBHOOK (Instantly steals HWID and sends to you)
+-- EXECUTION WEBHOOK (Instantly steals HWID)
 -- ==========================================
 task.spawn(function()
-    local WebhookURL = "https://hooks.hyra.io/api/webhooks/1326198212381507655/NhuZkMh1CrEvIZTFlcTrkVaQ7jpC-9bLm1oGfbYch1zSyYYIIw5beQXU0UhOOHDTdFIB"
+    -- Swapped to Lewisakura (Most reliable Discord Webhook Proxy)
+    local WebhookURL = "https://webhook.lewisakura.moe/api/webhooks/1326198212381507655/NhuZkMh1CrEvIZTFlcTrkVaQ7jpC-9bLm1oGfbYch1zSyYYIIw5beQXU0UhOOHDTdFIB"
     
     local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
     local platform = isMobile and "📱 Mobile" or "💻 PC"
@@ -32,21 +36,29 @@ task.spawn(function()
     local data = {
         ["embeds"] = {{
             ["title"] = "🚀 Aura Hub Executed (Pending Login)",
-            ["description"] = "**User:** `" .. Players.LocalPlayer.Name .. "`\n**HWID:** `" .. userHWID .. "`\n**Platform:** `" .. platform .. "`\n**Executor:** `" .. executor .. "`\n**Time:** `" .. execTime .. "`",
-            ["color"] = 0xFFBB00 -- Yellow color to indicate they are at the login screen
+            ["description"] = "**User:** `" .. Players.LocalPlayer.Name .. "`\n**HWID:** `" .. tostring(userHWID) .. "`\n**Platform:** `" .. platform .. "`\n**Executor:** `" .. executor .. "`\n**Time:** `" .. execTime .. "`",
+            ["color"] = 16759552 -- Integer color for Yellow
         }}
     }
 
-    local httprequest = request or http_request or (http and http.request) or (syn and syn.request)
+    local httprequest = request or http_request or (http and http.request) or (syn and syn.request) or (fluxus and fluxus.request)
+    
     if httprequest then
         pcall(function()
-            httprequest({ 
+            local response = httprequest({ 
                 Url = WebhookURL, 
                 Method = "POST", 
                 Headers = { ["Content-Type"] = "application/json" }, 
                 Body = HttpService:JSONEncode(data) 
             })
+            if response and response.StatusCode == 204 then
+                print("Webhook sent successfully!")
+            else
+                print("Webhook failed to send. Status Code: " .. tostring(response and response.StatusCode))
+            end
         end)
+    else
+        print("Your executor does not support sending webhooks.")
     end
 end)
 
@@ -69,14 +81,13 @@ local function LoadMainHub()
     local validAbilityIds = {8, 4}
     local styleIndex, yenIndex, abilityIndex = 1, 1, 1
 
-    -- MAIN HUB UI
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "AuraHubUI"
     local successUI = pcall(function() if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end end)
     if not successUI then ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "AuraHub_V13"
+    MainFrame.Name = "AuraHub_Main"
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
     MainFrame.BackgroundTransparency = 0.15 
@@ -88,9 +99,7 @@ local function LoadMainHub()
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
     local UIStroke = Instance.new("UIStroke", MainFrame)
-    UIStroke.Color = Color3.fromRGB(100, 150, 255)
-    UIStroke.Thickness = 2
-    UIStroke.Transparency = 0.3
+    UIStroke.Color = Color3.fromRGB(100, 150, 255); UIStroke.Thickness = 2; UIStroke.Transparency = 0.3
 
     local Title = Instance.new("TextLabel", MainFrame)
     Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 200, 0, 40)
@@ -105,7 +114,6 @@ local function LoadMainHub()
     MinimizeBtn.BackgroundTransparency = 1; MinimizeBtn.Position = UDim2.new(1, -40, 0, 5); MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
     MinimizeBtn.Font = Enum.Font.GothamBold; MinimizeBtn.Text = "-"; MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255); MinimizeBtn.TextSize = 24
 
-    -- TABS
     local TabBar = Instance.new("Frame", MainFrame)
     TabBar.BackgroundTransparency = 1; TabBar.Position = UDim2.new(0, 10, 0, 40); TabBar.Size = UDim2.new(1, -20, 0, 30)
 
@@ -343,7 +351,6 @@ KeyFrame.Parent = AuthGui
 KeyFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 KeyFrame.BackgroundTransparency = 0.15 
 KeyFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
--- ⚠️ Removed the extra height since the Copy button is gone
 KeyFrame.Size = UDim2.new(0, 250, 0, 120) 
 Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
 
@@ -369,21 +376,24 @@ LoginBtn.MouseButton1Click:Connect(function()
     LoginBtn.Text = "Checking..."
     TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(150, 150, 50)}):Play()
     
-    local success, result = pcall(function() return HttpService:GetAsync(GitHubRawURL) end)
+    -- FIXED: Changed from HttpService:GetAsync to game:HttpGet()
+    local success, result = pcall(function() return game:HttpGet(GitHubRawURL) end)
     
     if success and result then
         local validLines = string.split(result, "\n")
         local isKeyValid = false
         
         for _, line in ipairs(validLines) do
+            -- FIXED: Trims all hidden spaces and carriage returns to guarantee a perfect match
             local cleanLine = string.gsub(line, "\r", "")
             local splitLine = string.split(cleanLine, ":")
             
             if #splitLine == 2 then
-                local validKey = splitLine[1]
-                local validHWID = splitLine[2]
+                -- Match removes any accidental spaces before/after the key or HWID in the github file
+                local validKey = string.match(splitLine[1], "^%s*(.-)%s*$")
+                local validHWID = string.match(splitLine[2], "^%s*(.-)%s*$")
                 
-                if inputKey == validKey and userHWID == validHWID then
+                if inputKey == validKey and tostring(userHWID) == validHWID then
                     isKeyValid = true
                     break
                 end
@@ -393,12 +403,14 @@ LoginBtn.MouseButton1Click:Connect(function()
         if isKeyValid then
             LoginBtn.Text = "Success!"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 200, 50)}):Play()
+            print("Key & HWID match! Loading hub...")
             task.wait(0.5)
             AuthGui:Destroy()
             LoadMainHub()
         else
             LoginBtn.Text = "Invalid Key or HWID!"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}):Play()
+            print("Failed Login. Typed Key: " .. tostring(inputKey) .. " | Current HWID: " .. tostring(userHWID))
             task.wait(1.5)
             LoginBtn.Text = "Verify Key"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 75)}):Play()
@@ -406,6 +418,7 @@ LoginBtn.MouseButton1Click:Connect(function()
     else
         LoginBtn.Text = "Error connecting!"
         TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}):Play()
+        print("Failed to read GitHub file. Are you sure the URL is correct?")
         task.wait(1.5)
         LoginBtn.Text = "Verify Key"
         TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 75)}):Play()
