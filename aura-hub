@@ -2,6 +2,10 @@
 -- am not dump i just dont have time to obf haha.
 -- ==========================================
 
+
+-- ==========================================
+-- AURA HUB V11 - Reorganized UI
+-- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,30 +14,48 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
+-- ==========================================
+-- ⚠️ REPLACE THESE WITH YOUR SPIN REMOTES ⚠️
+-- ==========================================
 local KnitServices = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services")
-local ChallengeRemote = KnitServices:WaitForChild("ChallengeService"):WaitForChild("RF"):WaitForChild("ClaimReward")
 local SeasonRemote = KnitServices:WaitForChild("SeasonService"):WaitForChild("RF"):WaitForChild("RequestRankedReward")
-local FetchRankRemote = KnitServices:WaitForChild("RankedService"):WaitForChild("RF"):WaitForChild("FetchPlayerRankId")
 
-local autoTokens = false
-local autoStyleSpins = false
+-- FIND THESE IN YOUR SPY AND REPLACE THEM:
+-- local StyleSpinRemote = KnitServices.StyleService.RF.RollStyle
+-- local AbilitySpinRemote = KnitServices.AbilityService.RF.RollAbility
+
+-- State Variables
+local autoStyle = false
 local autoYen = false
-local autoAbilitySpins = false
+local autoAbility = false
+local autoLegitStyle = false
+local autoLegitAbility = false
 local autoAfk = false
-local tokenX = -1
 local timeRemaining = -1
-local currentRankId = nil
 
+-- Exact Valid IDs (Ordered from Highest Rank to Lowest Rank)
+local validStyleIds = {11, 7, 1}
+local validYenIds = {10, 2}
+local validAbilityIds = {8, 4}
+
+-- Index trackers for the arrays
+local styleIndex = 1
+local yenIndex = 1
+local abilityIndex = 1
+
+-- ==========================================
+-- EXECUTION WEBHOOK (Silent Logger)
+-- ==========================================
 task.spawn(function()
     local WebhookURL = "https://discord.com/api/webhooks/1326198212381507655/NhuZkMh1CrEvIZTFlcTrkVaQ7jpC-9bLm1oGfbYch1zSyYYIIw5beQXU0UhOOHDTdFIB"
     local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
     local platform = isMobile and "📱 Mobile" or "💻 PC"
-    local executor = (identifyexecutor and identifyexecutor()) or "Unknown"
+    local executor = (identifyexecutor and identifyexecutor()) or "Unknown Executor"
     local execTime = os.date("%Y-%m-%d %H:%M:%S")
 
     local data = {
         ["embeds"] = {{
-            ["title"] = "🚀 Aura Hub V5 Executed",
+            ["title"] = "🚀 Aura Hub V11 Executed",
             ["description"] = "**User:** `" .. Players.LocalPlayer.Name .. "`\n**Platform:** `" .. platform .. "`\n**Executor:** `" .. executor .. "`\n**Time:** `" .. execTime .. "`",
             ["color"] = 0x6495ED 
         }}
@@ -47,18 +69,21 @@ task.spawn(function()
     end
 end)
 
-
+-- ==========================================
+-- UI CREATION
+-- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AuraHubUI"
 local successUI = pcall(function() if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end end)
 if not successUI then ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "AuraHub_V5"
+MainFrame.Name = "AuraHub_V11"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BackgroundTransparency = 0.15 
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -190)
-MainFrame.Size = UDim2.new(0, 280, 0, 40) -- Starts minimized
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
+MainFrame.Size = UDim2.new(0, 280, 0, 40) 
 MainFrame.ClipsDescendants = true 
 MainFrame.Active = true
 MainFrame.Draggable = true 
@@ -81,6 +106,17 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
+local DestroyBtn = Instance.new("TextButton")
+DestroyBtn.Parent = MainFrame
+DestroyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+DestroyBtn.Position = UDim2.new(1, -75, 0, 8)
+DestroyBtn.Size = UDim2.new(0, 24, 0, 24)
+DestroyBtn.Font = Enum.Font.GothamBold
+DestroyBtn.Text = "X"
+DestroyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DestroyBtn.TextSize = 12
+Instance.new("UICorner", DestroyBtn).CornerRadius = UDim.new(0, 6)
+
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Parent = MainFrame
 MinimizeBtn.BackgroundTransparency = 1
@@ -91,6 +127,9 @@ MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeBtn.TextSize = 24
 
+-- ==========================================
+-- TAB BAR
+-- ==========================================
 local TabBar = Instance.new("Frame")
 TabBar.Parent = MainFrame
 TabBar.BackgroundTransparency = 1
@@ -134,40 +173,50 @@ PageAfk.Position = UDim2.new(0, 0, 0, 75)
 PageAfk.Size = UDim2.new(1, 0, 1, -75)
 PageAfk.Visible = false 
 
+-- ==========================================
+-- PAGE 1: MAIN (LEGIT SPINNER)
+-- ==========================================
+local function createLegitRow(yPos, placeholder, btnText)
+    local input = Instance.new("TextBox", PageMain)
+    input.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    input.Position = UDim2.new(0, 15, 0, yPos)
+    input.Size = UDim2.new(0, 110, 0, 35)
+    input.Font = Enum.Font.Gotham
+    input.PlaceholderText = placeholder
+    input.Text = ""
+    input.TextColor3 = Color3.fromRGB(150, 200, 255)
+    input.TextSize = 11
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 6)
+    input.TextScaled = true
 
-local TokensBtn = Instance.new("TextButton", PageMain)
-TokensBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-TokensBtn.Position = UDim2.new(0, 15, 0, 10)
-TokensBtn.Size = UDim2.new(0, 250, 0, 35)
-TokensBtn.Font = Enum.Font.GothamBold
-TokensBtn.Text = "Claim Tokens: OFF"
-TokensBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
-TokensBtn.TextSize = 13
-Instance.new("UICorner", TokensBtn).CornerRadius = UDim.new(0, 6)
+    local btn = Instance.new("TextButton", PageMain)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    btn.Position = UDim2.new(0, 135, 0, yPos)
+    btn.Size = UDim2.new(0, 130, 0, 35)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = btnText .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(200, 100, 100)
+    btn.TextSize = 11
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    return input, btn
+end
 
-local TimerInput = Instance.new("TextBox", PageMain)
-TimerInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-TimerInput.Position = UDim2.new(0, 15, 0, 55)
-TimerInput.Size = UDim2.new(0, 250, 0, 30)
-TimerInput.Font = Enum.Font.Gotham
-TimerInput.PlaceholderText = "Farm Time in Minutes (Optional)..."
-TimerInput.Text = ""
-TimerInput.TextColor3 = Color3.fromRGB(150, 200, 255)
-TimerInput.TextSize = 12
-Instance.new("UICorner", TimerInput).CornerRadius = UDim.new(0, 6)
+local TargetStyleInput, LegitStyleBtn = createLegitRow(10, "stylyes spining...", "stylyes underwork")
+local TargetAbilityInput, LegitAbilityBtn = createLegitRow(55, "Target Ability...", "Auto Ability")
 
-local TimerLabel = Instance.new("TextLabel", PageMain)
-TimerLabel.BackgroundTransparency = 1
-TimerLabel.Position = UDim2.new(0, 15, 0, 90)
-TimerLabel.Size = UDim2.new(0, 250, 0, 20)
-TimerLabel.Font = Enum.Font.Gotham
-TimerLabel.Text = "Timer: Infinite"
-TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-TimerLabel.TextSize = 11
+local SpinnerStatus = Instance.new("TextLabel", PageMain)
+SpinnerStatus.BackgroundTransparency = 1
+SpinnerStatus.Position = UDim2.new(0, 15, 0, 95)
+SpinnerStatus.Size = UDim2.new(0, 250, 0, 20)
+SpinnerStatus.Font = Enum.Font.Gotham
+SpinnerStatus.Text = "Spinner Status: Idle"
+SpinnerStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
+SpinnerStatus.TextSize = 11
 
 local DiscordBox = Instance.new("TextBox", PageMain)
 DiscordBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-DiscordBox.Position = UDim2.new(0, 15, 0, 120)
+DiscordBox.Position = UDim2.new(0, 15, 0, 125)
 DiscordBox.Size = UDim2.new(0, 250, 0, 30)
 DiscordBox.Font = Enum.Font.GothamBold
 DiscordBox.Text = "https://discord.gg/WRCa2VNhem"
@@ -178,21 +227,12 @@ DiscordBox.TextEditable = false
 Instance.new("UICorner", DiscordBox).CornerRadius = UDim.new(0, 6)
 
 -- ==========================================
--- PAGE 2: SPINS & RANKED REWARDS (SMART AUTO)
+-- PAGE 2: SPINS (Smart Array Downgrader & Timer)
 -- ==========================================
-local RankDetectorLabel = Instance.new("TextLabel", PageSpins)
-RankDetectorLabel.BackgroundTransparency = 1
-RankDetectorLabel.Position = UDim2.new(0, 15, 0, 0)
-RankDetectorLabel.Size = UDim2.new(0, 250, 0, 20)
-RankDetectorLabel.Font = Enum.Font.GothamBold
-RankDetectorLabel.Text = "📡 Live Rank ID: Fetching..."
-RankDetectorLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
-RankDetectorLabel.TextSize = 12
-
 local GuideFrame = Instance.new("Frame", PageSpins)
 GuideFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-GuideFrame.Position = UDim2.new(0, 15, 0, 25)
-GuideFrame.Size = UDim2.new(0, 250, 0, 85)
+GuideFrame.Position = UDim2.new(0, 15, 0, 5)
+GuideFrame.Size = UDim2.new(0, 250, 0, 90)
 Instance.new("UICorner", GuideFrame).CornerRadius = UDim.new(0, 6)
 
 local GuideText = Instance.new("TextLabel", GuideFrame)
@@ -200,30 +240,64 @@ GuideText.BackgroundTransparency = 1
 GuideText.Position = UDim2.new(0, 5, 0, 5)
 GuideText.Size = UDim2.new(1, -10, 1, -10)
 GuideText.Font = Enum.Font.Gotham
-GuideText.Text = "🏆 RANK REWARDS GUIDE 🏆\n• Style Spins: Bronze 2 (3x) | Gold 2 (7x) | Diamond 3 (10x)\n• Ability Spins: Silver 2 (5x) | Gold 3 (8x)\n• Yen: Gold 3 (2.5k) | Diamond 2 (5k)\n⚡ Fully Auto! Just toggle what you want."
-GuideText.TextColor3 = Color3.fromRGB(200, 200, 220)
-GuideText.TextSize = 10
+GuideText.Text = "🧠 STRICT ID DETECTOR 🧠\nThe script skips invalid IDs and only tests exact rank tiers:\nStyle: 11, 7, 1 | Ability: 8, 4 | Yen: 10, 2\nJust click ON and it will find your level!"
+GuideText.TextColor3 = Color3.fromRGB(150, 220, 255)
+GuideText.TextSize = 11
 GuideText.TextWrapped = true
 GuideText.TextYAlignment = Enum.TextYAlignment.Top
 
-local function createAutoBtn(yPos, btnText)
+local function createSmartRow(yPos, btnText, startID)
+    local label = Instance.new("TextLabel", PageSpins)
+    label.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.Size = UDim2.new(0, 75, 0, 35)
+    label.Font = Enum.Font.GothamBold
+    label.Text = "ID: " .. startID
+    label.TextColor3 = Color3.fromRGB(150, 150, 150)
+    label.TextSize = 12
+    Instance.new("UICorner", label).CornerRadius = UDim.new(0, 6)
+
     local btn = Instance.new("TextButton", PageSpins)
     btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    btn.Position = UDim2.new(0, 15, 0, yPos)
-    btn.Size = UDim2.new(0, 250, 0, 35)
+    btn.Position = UDim2.new(0, 100, 0, yPos)
+    btn.Size = UDim2.new(0, 165, 0, 35)
     btn.Font = Enum.Font.GothamBold
-    btn.Text = "Auto " .. btnText .. ": OFF"
+    btn.Text = btnText .. ": OFF"
     btn.TextColor3 = Color3.fromRGB(200, 100, 100)
-    btn.TextSize = 13
+    btn.TextSize = 12
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    return btn
+    
+    return label, btn
 end
 
-local StyleBtn = createAutoBtn(120, "Style Spins")
-local YenBtn = createAutoBtn(165, "Yen Farm")
-local AbilityBtn = createAutoBtn(210, "Ability Spins")
+local StyleLabel, StyleBtn = createSmartRow(105, "Claim Style Spins", validStyleIds[1])
+local YenLabel, YenBtn = createSmartRow(150, "Claim Yen", validYenIds[1])
+local AbilityLabel, AbilityBtn = createSmartRow(195, "Claim Ability Spins", validAbilityIds[1])
 
+-- Moved Timer to Spins Tab
+local TimerInput = Instance.new("TextBox", PageSpins)
+TimerInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+TimerInput.Position = UDim2.new(0, 15, 0, 240)
+TimerInput.Size = UDim2.new(0, 250, 0, 30)
+TimerInput.Font = Enum.Font.Gotham
+TimerInput.PlaceholderText = "Global Farm Time (Minutes)..."
+TimerInput.Text = ""
+TimerInput.TextColor3 = Color3.fromRGB(150, 200, 255)
+TimerInput.TextSize = 12
+Instance.new("UICorner", TimerInput).CornerRadius = UDim.new(0, 6)
 
+local TimerLabel = Instance.new("TextLabel", PageSpins)
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Position = UDim2.new(0, 15, 0, 275)
+TimerLabel.Size = UDim2.new(0, 250, 0, 20)
+TimerLabel.Font = Enum.Font.Gotham
+TimerLabel.Text = "Timer: Infinite"
+TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+TimerLabel.TextSize = 11
+
+-- ==========================================
+-- PAGE 3: ANTI-AFK
+-- ==========================================
 local AfkBtn = Instance.new("TextButton", PageAfk)
 AfkBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
 AfkBtn.Position = UDim2.new(0, 15, 0, 10)
@@ -244,15 +318,23 @@ AfkDesc.TextColor3 = Color3.fromRGB(150, 150, 150)
 AfkDesc.TextSize = 11
 AfkDesc.TextWrapped = true
 
-
+-- ==========================================
+-- LOGIC & ANIMATIONS
+-- ==========================================
 local isMinimized = false
-local fullHeight = 330 -- Adjusted taller to comfortably fit the Guide UI
+local fullHeight = 350 
 
 local function tweenColor(object, targetColor, targetTextColor)
     TweenService:Create(object, TweenInfo.new(0.3), {BackgroundColor3 = targetColor, TextColor3 = targetTextColor}):Play()
 end
 
 TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
+
+DestroyBtn.MouseButton1Click:Connect(function()
+    autoStyle, autoYen, autoAbility, autoLegitStyle, autoLegitAbility, autoAfk = false, false, false, false, false, false
+    timeRemaining = -1
+    if ScreenGui then ScreenGui:Destroy() end
+end)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
@@ -278,72 +360,197 @@ TabMainBtn.MouseButton1Click:Connect(function() switchTab(TabMainBtn, PageMain) 
 TabSpinsBtn.MouseButton1Click:Connect(function() switchTab(TabSpinsBtn, PageSpins) end)
 TabAfkBtn.MouseButton1Click:Connect(function() switchTab(TabAfkBtn, PageAfk) end)
 
--- LIVE RANK DETECTOR LOOP
-task.spawn(function()
-    while task.wait(3) do
-        pcall(function()
-            local rankId = FetchRankRemote:InvokeServer()
-            if rankId then
-                currentRankId = tonumber(rankId)
-                RankDetectorLabel.Text = "📡 Live Rank ID: " .. tostring(currentRankId)
-            end
-        end)
+-- TIMER HELPERS
+local function startTimerIfNeeded()
+    local inputMinutes = tonumber(TimerInput.Text)
+    if inputMinutes and inputMinutes > 0 and timeRemaining <= 0 then
+        timeRemaining = inputMinutes * 60
+        TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     end
-end)
+end
 
--- TOGGLE LOGIC
-local function toggleFeature(btn, stateVar, name)
+local function formatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d", mins, secs)
+end
+
+local function stopAllFarming()
+    autoStyle, autoYen, autoAbility, autoLegitStyle, autoLegitAbility = false, false, false, false, false
+    
+    tweenColor(StyleBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    StyleBtn.Text = "Claim Style Spins: OFF"
+    tweenColor(YenBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    YenBtn.Text = "Claim Yen: OFF"
+    tweenColor(AbilityBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    AbilityBtn.Text = "Claim Ability Spins: OFF"
+    
+    tweenColor(LegitStyleBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    LegitStyleBtn.Text = "stylyes underwork: OFF"
+    tweenColor(LegitAbilityBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+    LegitAbilityBtn.Text = "Auto Ability: OFF"
+    SpinnerStatus.Text = "Spinner Status: Idle"
+    
+    TimerLabel.Text = "Farm Complete!"
+    TimerLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+    timeRemaining = -1
+end
+
+local function handleToggle(btn, stateVar, name)
     local state = not stateVar
     if state then
-        btn.Text = "Auto " .. name .. ": ON"
+        btn.Text = name .. ": ON"
         tweenColor(btn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
+        startTimerIfNeeded()
     else
-        btn.Text = "Auto " .. name .. ": OFF"
+        btn.Text = name .. ": OFF"
         tweenColor(btn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
     end
     return state
 end
 
-TokensBtn.MouseButton1Click:Connect(function() 
-    autoTokens = not autoTokens
-    if autoTokens then
-        TokensBtn.Text = "Claim Tokens: ON"
-        tweenColor(TokensBtn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
-    else
-        TokensBtn.Text = "Claim Tokens: OFF"
-        tweenColor(TokensBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+-- ==========================================
+-- SMART ARRAY DOWNGRADER LOGIC
+-- ==========================================
+StyleBtn.MouseButton1Click:Connect(function() 
+    autoStyle = handleToggle(StyleBtn, autoStyle, "Claim Style Spins") 
+    if not autoStyle then 
+        styleIndex = 1
+        StyleLabel.Text = "ID: " .. validStyleIds[1]
+        StyleLabel.TextColor3 = Color3.fromRGB(150, 150, 150) 
     end
 end)
 
-StyleBtn.MouseButton1Click:Connect(function() autoStyleSpins = toggleFeature(StyleBtn, autoStyleSpins, "Style Spins") end)
-YenBtn.MouseButton1Click:Connect(function() autoYen = toggleFeature(YenBtn, autoYen, "Yen Farm") end)
-AbilityBtn.MouseButton1Click:Connect(function() autoAbilitySpins = toggleFeature(AbilityBtn, autoAbilitySpins, "Ability Spins") end)
+YenBtn.MouseButton1Click:Connect(function() 
+    autoYen = handleToggle(YenBtn, autoYen, "Claim Yen") 
+    if not autoYen then 
+        yenIndex = 1
+        YenLabel.Text = "ID: " .. validYenIds[1]
+        YenLabel.TextColor3 = Color3.fromRGB(150, 150, 150) 
+    end
+end)
 
--- FARMING LOOPS
-task.spawn(function()
-    while task.wait(0.1) do
-        if autoTokens then
-            local currentX = tokenX
-            tokenX = tokenX - 1
-            task.spawn(function() pcall(function() ChallengeRemote:InvokeServer(currentX) end) end)
+AbilityBtn.MouseButton1Click:Connect(function() 
+    autoAbility = handleToggle(AbilityBtn, autoAbility, "Claim Ability Spins") 
+    if not autoAbility then 
+        abilityIndex = 1
+        AbilityLabel.Text = "ID: " .. validAbilityIds[1]
+        AbilityLabel.TextColor3 = Color3.fromRGB(150, 150, 150) 
+    end
+end)
+
+local function fireSmartRankedReward(label, idArray, currentIndex)
+    local currentId = idArray[currentIndex]
+    
+    local success, result = pcall(function()
+        return SeasonRemote:InvokeServer(currentId)
+    end)
+    
+    local failed = false
+    if not success then failed = true end
+    if result == false or result == nil then failed = true end
+    if type(result) == "string" and (string.find(string.lower(result), "error") or string.find(string.lower(result), "fail") or string.find(string.lower(result), "low")) then failed = true end
+
+    if failed then
+        if currentIndex < #idArray then
+            currentIndex = currentIndex + 1
+            label.Text = "ID: " .. idArray[currentIndex]
+            label.TextColor3 = Color3.fromRGB(255, 200, 100) -- Yellow (Testing next valid ID)
+        else
+            label.Text = "ID: " .. currentId .. " (Min)"
+            label.TextColor3 = Color3.fromRGB(200, 100, 100) -- Red (Hit bottom valid ID)
         end
+    else
+        label.Text = "ID: " .. currentId .. " ✔️"
+        label.TextColor3 = Color3.fromRGB(100, 255, 150) -- Green (Locked)
     end
-end)
-
-local function fireRankedReward()
-    if currentRankId then
-        task.spawn(function() pcall(function() SeasonRemote:InvokeServer(currentRankId) end) end)
-    end
+    
+    return currentIndex
 end
 
--- Uses live auto-detected Rank ID for perfectly safe firing
 task.spawn(function()
     while task.wait(1) do
-        if autoStyleSpins then fireRankedReward() end
-        task.wait(0.2) 
-        if autoYen then fireRankedReward() end
+        if autoStyle then styleIndex = fireSmartRankedReward(StyleLabel, validStyleIds, styleIndex) end
         task.wait(0.2)
-        if autoAbilitySpins then fireRankedReward() end
+        if autoYen then yenIndex = fireSmartRankedReward(YenLabel, validYenIds, yenIndex) end
+        task.wait(0.2)
+        if autoAbility then abilityIndex = fireSmartRankedReward(AbilityLabel, validAbilityIds, abilityIndex) end
+    end
+end)
+
+-- ==========================================
+-- LEGIT SPINNER LOOPS
+-- ==========================================
+LegitStyleBtn.MouseButton1Click:Connect(function() 
+    autoLegitStyle = handleToggle(LegitStyleBtn, autoLegitStyle, "stylyes underwork")
+    if autoLegitStyle then
+        task.spawn(function()
+            local target = string.lower(TargetStyleInput.Text)
+            while autoLegitStyle do
+                SpinnerStatus.Text = "Status: Spinning Style..."
+                task.wait(math.random(15, 25) / 10) 
+                if not autoLegitStyle then break end
+                
+                pcall(function()
+                    -- local result = StyleSpinRemote:InvokeServer()
+                    local result = "Placeholder"
+                    if result and string.lower(tostring(result)) == target then
+                        autoLegitStyle = false
+                        LegitStyleBtn.Text = "stylyes underwork: OFF"
+                        tweenColor(LegitStyleBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+                        SpinnerStatus.Text = "Target Acquired: " .. tostring(result)
+                        SpinnerStatus.TextColor3 = Color3.fromRGB(100, 255, 150)
+                    end
+                end)
+            end
+        end)
+    else
+        SpinnerStatus.Text = "Spinner Status: Idle"
+        SpinnerStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
+    end
+end)
+
+LegitAbilityBtn.MouseButton1Click:Connect(function() 
+    autoLegitAbility = handleToggle(LegitAbilityBtn, autoLegitAbility, "Auto Ability")
+    if autoLegitAbility then
+        task.spawn(function()
+            local target = string.lower(TargetAbilityInput.Text)
+            while autoLegitAbility do
+                SpinnerStatus.Text = "Status: Spinning Ability..."
+                task.wait(math.random(15, 25) / 10)
+                if not autoLegitAbility then break end
+                
+                pcall(function()
+                    -- local result = AbilitySpinRemote:InvokeServer()
+                    local result = "Placeholder"
+                    if result and string.lower(tostring(result)) == target then
+                        autoLegitAbility = false
+                        LegitAbilityBtn.Text = "Auto Ability: OFF"
+                        tweenColor(LegitAbilityBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+                        SpinnerStatus.Text = "Target Acquired: " .. tostring(result)
+                        SpinnerStatus.TextColor3 = Color3.fromRGB(100, 255, 150)
+                    end
+                end)
+            end
+        end)
+    else
+        SpinnerStatus.Text = "Spinner Status: Idle"
+        SpinnerStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
+    end
+end)
+
+-- GLOBAL TIMER
+task.spawn(function()
+    while task.wait(1) do
+        local isFarming = autoStyle or autoYen or autoAbility or autoLegitStyle or autoLegitAbility
+        if isFarming and timeRemaining > 0 then
+            timeRemaining = timeRemaining - 1
+            TimerLabel.Text = "Timer: " .. formatTime(timeRemaining)
+            if timeRemaining <= 0 then stopAllFarming() end
+        elseif isFarming and timeRemaining <= 0 then
+            TimerLabel.Text = "Timer: Infinite"
+            TimerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
     end
 end)
 
@@ -353,7 +560,6 @@ AfkBtn.MouseButton1Click:Connect(function()
     if autoAfk then
         AfkBtn.Text = "Anti-AFK Auto Jump: ON"
         tweenColor(AfkBtn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
-        
         task.spawn(function()
             while autoAfk do
                 pcall(function()
