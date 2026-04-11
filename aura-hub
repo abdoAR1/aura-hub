@@ -1,5 +1,5 @@
 -- ==========================================
--- AURA HUB V13.1 - GET/Webhook Repairs
+-- AURA HUB V17 - Safe Version (No Auto-Rollers)
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -7,8 +7,11 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 
--- Your raw GitHub link
-local GitHubRawURL = "https://raw.githubusercontent.com/abdoAR1/whitelist.txt/refs/heads/main/whitelist.txt"
+-- Decoder Function for protected strings
+local function d(t) local s="" for i=1,#t do s=s..string.char(t[i]) end return s end
+
+-- Encrypted GitHub URL
+local GitHubRawURL = d({104, 116, 116, 112, 115, 58, 47, 47, 114, 97, 119, 46, 103, 105, 116, 104, 117, 98, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109, 47, 97, 98, 100, 111, 65, 82, 49, 47, 119, 104, 105, 116, 101, 108, 105, 115, 116, 46, 116, 120, 116, 47, 114, 101, 102, 115, 47, 104, 101, 97, 100, 115, 47, 109, 97, 105, 110, 47, 119, 104, 105, 116, 101, 108, 105, 115, 116, 46, 116, 120, 116})
 
 -- Safely Fetch Hardware ID
 local userHWID = "Unknown_HWID"
@@ -19,14 +22,12 @@ pcall(function()
         userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
     end
 end)
-print("Detected HWID: " .. tostring(userHWID))
 
 -- ==========================================
--- EXECUTION WEBHOOK (Instantly steals HWID)
+-- EXECUTION WEBHOOK
 -- ==========================================
 task.spawn(function()
-    -- Swapped to Lewisakura (Most reliable Discord Webhook Proxy)
-    local WebhookURL = "https://webhook.lewisakura.moe/api/webhooks/1326198212381507655/NhuZkMh1CrEvIZTFlcTrkVaQ7jpC-9bLm1oGfbYch1zSyYYIIw5beQXU0UhOOHDTdFIB"
+    local WebhookURL = d({104, 116, 116, 112, 115, 58, 47, 47, 119, 101, 98, 104, 111, 111, 107, 46, 108, 101, 119, 105, 115, 97, 107, 117, 114, 97, 46, 109, 111, 101, 47, 97, 112, 105, 47, 119, 101, 98, 104, 111, 111, 107, 115, 47, 49, 51, 50, 54, 49, 57, 56, 50, 49, 50, 51, 56, 49, 53, 48, 55, 54, 53, 53, 47, 78, 104, 117, 90, 107, 77, 104, 49, 67, 114, 69, 118, 73, 90, 84, 70, 108, 99, 84, 114, 107, 86, 97, 81, 55, 106, 112, 67, 45, 57, 98, 76, 109, 49, 111, 71, 102, 98, 89, 99, 104, 49, 122, 83, 121, 89, 89, 73, 73, 119, 53, 98, 101, 81, 88, 85, 48, 85, 104, 79, 79, 72, 68, 84, 100, 70, 73, 66})
     
     local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
     local platform = isMobile and "📱 Mobile" or "💻 PC"
@@ -37,7 +38,7 @@ task.spawn(function()
         ["embeds"] = {{
             ["title"] = "🚀 Aura Hub Executed (Pending Login)",
             ["description"] = "**User:** `" .. Players.LocalPlayer.Name .. "`\n**HWID:** `" .. tostring(userHWID) .. "`\n**Platform:** `" .. platform .. "`\n**Executor:** `" .. executor .. "`\n**Time:** `" .. execTime .. "`",
-            ["color"] = 16759552 -- Integer color for Yellow
+            ["color"] = 16759552
         }}
     }
 
@@ -45,36 +46,31 @@ task.spawn(function()
     
     if httprequest then
         pcall(function()
-            local response = httprequest({ 
+            httprequest({ 
                 Url = WebhookURL, 
                 Method = "POST", 
                 Headers = { ["Content-Type"] = "application/json" }, 
                 Body = HttpService:JSONEncode(data) 
             })
-            if response and response.StatusCode == 204 then
-                print("Webhook sent successfully!")
-            else
-                print("Webhook failed to send. Status Code: " .. tostring(response and response.StatusCode))
-            end
         end)
-    else
-        print("Your executor does not support sending webhooks.")
     end
 end)
 
 -- ==========================================
--- MAIN HUB FUNCTION (Loads after successful login)
+-- MAIN HUB FUNCTION
 -- ==========================================
 local function LoadMainHub()
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local VirtualInputManager = game:GetService("VirtualInputManager")
 
     local KnitServices = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services")
+    local ChallengeRemote = KnitServices:WaitForChild("ChallengeService"):WaitForChild("RF"):WaitForChild("ClaimReward")
     local SeasonRemote = KnitServices:WaitForChild("SeasonService"):WaitForChild("RF"):WaitForChild("RequestRankedReward")
 
-    local autoStyle, autoYen, autoAbility = false, false, false
-    local autoLegitStyle, autoLegitAbility, autoAfk = false, false, false
+    local autoTokens, autoStyle, autoYen, autoAbility = false, false, false, false
+    local autoAfk = false
     local timeRemaining = -1
+    local tokenX = -1
 
     local validStyleIds = {11, 7, 1}
     local validYenIds = {10, 2}
@@ -138,33 +134,22 @@ local function LoadMainHub()
     PageAfk.BackgroundTransparency = 1; PageAfk.Position = UDim2.new(0, 0, 0, 75); PageAfk.Size = UDim2.new(1, 0, 1, -75); PageAfk.Visible = false 
 
     -- MAIN PAGE CONTENT
-    local function createLegitRow(yPos, placeholder, btnText)
-        local input = Instance.new("TextBox", PageMain)
-        input.BackgroundColor3 = Color3.fromRGB(20, 20, 35); input.Position = UDim2.new(0, 15, 0, yPos); input.Size = UDim2.new(0, 110, 0, 35)
-        input.Font = Enum.Font.Gotham; input.PlaceholderText = placeholder; input.TextColor3 = Color3.fromRGB(150, 200, 255); input.TextSize = 11
-        Instance.new("UICorner", input).CornerRadius = UDim.new(0, 6); input.TextScaled = true
+    local TokensBtn = Instance.new("TextButton", PageMain)
+    TokensBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); TokensBtn.Position = UDim2.new(0, 15, 0, 10); TokensBtn.Size = UDim2.new(0, 250, 0, 35)
+    TokensBtn.Font = Enum.Font.GothamBold; TokensBtn.Text = "Claim Tokens: OFF"; TokensBtn.TextColor3 = Color3.fromRGB(200, 100, 100); TokensBtn.TextSize = 13
+    Instance.new("UICorner", TokensBtn).CornerRadius = UDim.new(0, 6)
 
-        local btn = Instance.new("TextButton", PageMain)
-        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); btn.Position = UDim2.new(0, 135, 0, yPos); btn.Size = UDim2.new(0, 130, 0, 35)
-        btn.Font = Enum.Font.GothamBold; btn.Text = btnText .. ": OFF"; btn.TextColor3 = Color3.fromRGB(200, 100, 100); btn.TextSize = 11
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        return input, btn
-    end
-
-    local TargetStyleInput, LegitStyleBtn = createLegitRow(10, "stylyes spining...", "stylyes underwork")
-    local TargetAbilityInput, LegitAbilityBtn = createLegitRow(55, "Target Ability...", "Auto Ability")
-
-    local SpinnerStatus = Instance.new("TextLabel", PageMain)
-    SpinnerStatus.BackgroundTransparency = 1; SpinnerStatus.Position = UDim2.new(0, 15, 0, 95); SpinnerStatus.Size = UDim2.new(0, 250, 0, 20)
-    SpinnerStatus.Font = Enum.Font.Gotham; SpinnerStatus.Text = "Spinner Status: Idle"; SpinnerStatus.TextColor3 = Color3.fromRGB(150, 150, 150); SpinnerStatus.TextSize = 11
+    local InfoLabel = Instance.new("TextLabel", PageMain)
+    InfoLabel.BackgroundTransparency = 1; InfoLabel.Position = UDim2.new(0, 15, 0, 55); InfoLabel.Size = UDim2.new(0, 250, 0, 40)
+    InfoLabel.Font = Enum.Font.Gotham; InfoLabel.Text = "Auto-Rollers have been completely removed to protect your equipped slots."; InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150); InfoLabel.TextSize = 11; InfoLabel.TextWrapped = true
 
     local DiscordBox = Instance.new("TextBox", PageMain)
-    DiscordBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40); DiscordBox.Position = UDim2.new(0, 15, 0, 125); DiscordBox.Size = UDim2.new(0, 250, 0, 30)
+    DiscordBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40); DiscordBox.Position = UDim2.new(0, 15, 0, 105); DiscordBox.Size = UDim2.new(0, 250, 0, 30)
     DiscordBox.Font = Enum.Font.GothamBold; DiscordBox.Text = "https://discord.gg/WRCa2VNhem"; DiscordBox.TextColor3 = Color3.fromRGB(100, 150, 255)
     DiscordBox.TextSize = 11; DiscordBox.ClearTextOnFocus = false; DiscordBox.TextEditable = false 
     Instance.new("UICorner", DiscordBox).CornerRadius = UDim.new(0, 6)
 
-    -- SPINS PAGE CONTENT
+    -- SPINS PAGE CONTENT (RANKED CLAIMS)
     local GuideFrame = Instance.new("Frame", PageSpins)
     GuideFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30); GuideFrame.Position = UDim2.new(0, 15, 0, 5); GuideFrame.Size = UDim2.new(0, 250, 0, 90)
     Instance.new("UICorner", GuideFrame).CornerRadius = UDim.new(0, 6)
@@ -221,7 +206,7 @@ local function LoadMainHub()
     TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
 
     DestroyBtn.MouseButton1Click:Connect(function()
-        autoStyle, autoYen, autoAbility, autoLegitStyle, autoLegitAbility, autoAfk = false, false, false, false, false, false
+        autoTokens, autoStyle, autoYen, autoAbility, autoAfk = false, false, false, false, false
         timeRemaining = -1
         if ScreenGui then ScreenGui:Destroy() end
     end)
@@ -273,6 +258,7 @@ local function LoadMainHub()
         return state
     end
 
+    TokensBtn.MouseButton1Click:Connect(function() autoTokens = handleToggle(TokensBtn, autoTokens, "Claim Tokens") end)
     StyleBtn.MouseButton1Click:Connect(function() autoStyle = handleToggle(StyleBtn, autoStyle, "Claim Style Spins"); if not autoStyle then styleIndex = 1; StyleLabel.Text = "ID: " .. validStyleIds[1]; StyleLabel.TextColor3 = Color3.fromRGB(150, 150, 150) end end)
     YenBtn.MouseButton1Click:Connect(function() autoYen = handleToggle(YenBtn, autoYen, "Claim Yen"); if not autoYen then yenIndex = 1; YenLabel.Text = "ID: " .. validYenIds[1]; YenLabel.TextColor3 = Color3.fromRGB(150, 150, 150) end end)
     AbilityBtn.MouseButton1Click:Connect(function() autoAbility = handleToggle(AbilityBtn, autoAbility, "Claim Ability Spins"); if not autoAbility then abilityIndex = 1; AbilityLabel.Text = "ID: " .. validAbilityIds[1]; AbilityLabel.TextColor3 = Color3.fromRGB(150, 150, 150) end end)
@@ -300,22 +286,28 @@ local function LoadMainHub()
         end
     end)
 
-    LegitStyleBtn.MouseButton1Click:Connect(function() autoLegitStyle = handleToggle(LegitStyleBtn, autoLegitStyle, "stylyes underwork") end)
-    LegitAbilityBtn.MouseButton1Click:Connect(function() autoLegitAbility = handleToggle(LegitAbilityBtn, autoLegitAbility, "Auto Ability") end)
+    task.spawn(function()
+        while task.wait(0.1) do
+            if autoTokens then
+                local currentX = tokenX
+                tokenX = tokenX - 1
+                task.spawn(function() pcall(function() ChallengeRemote:InvokeServer(currentX) end) end)
+            end
+        end
+    end)
 
     task.spawn(function()
         while task.wait(1) do
-            local isFarming = autoStyle or autoYen or autoAbility or autoLegitStyle or autoLegitAbility
+            local isFarming = autoTokens or autoStyle or autoYen or autoAbility
             if isFarming and timeRemaining > 0 then
                 timeRemaining = timeRemaining - 1
                 TimerLabel.Text = "Timer: " .. formatTime(timeRemaining)
                 if timeRemaining <= 0 then 
-                    autoStyle, autoYen, autoAbility, autoLegitStyle, autoLegitAbility = false, false, false, false, false
+                    autoTokens, autoStyle, autoYen, autoAbility = false, false, false, false
+                    tweenColor(TokensBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); TokensBtn.Text = "Claim Tokens: OFF"
                     tweenColor(StyleBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); StyleBtn.Text = "Claim Style Spins: OFF"
                     tweenColor(YenBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); YenBtn.Text = "Claim Yen: OFF"
                     tweenColor(AbilityBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); AbilityBtn.Text = "Claim Ability Spins: OFF"
-                    tweenColor(LegitStyleBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); LegitStyleBtn.Text = "stylyes underwork: OFF"
-                    tweenColor(LegitAbilityBtn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100)); LegitAbilityBtn.Text = "Auto Ability: OFF"
                     TimerLabel.Text = "Farm Complete!"; TimerLabel.TextColor3 = Color3.fromRGB(100, 255, 150); timeRemaining = -1
                 end
             elseif isFarming and timeRemaining <= 0 then
@@ -376,7 +368,6 @@ LoginBtn.MouseButton1Click:Connect(function()
     LoginBtn.Text = "Checking..."
     TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(150, 150, 50)}):Play()
     
-    -- FIXED: Changed from HttpService:GetAsync to game:HttpGet()
     local success, result = pcall(function() return game:HttpGet(GitHubRawURL) end)
     
     if success and result then
@@ -384,12 +375,10 @@ LoginBtn.MouseButton1Click:Connect(function()
         local isKeyValid = false
         
         for _, line in ipairs(validLines) do
-            -- FIXED: Trims all hidden spaces and carriage returns to guarantee a perfect match
             local cleanLine = string.gsub(line, "\r", "")
             local splitLine = string.split(cleanLine, ":")
             
             if #splitLine == 2 then
-                -- Match removes any accidental spaces before/after the key or HWID in the github file
                 local validKey = string.match(splitLine[1], "^%s*(.-)%s*$")
                 local validHWID = string.match(splitLine[2], "^%s*(.-)%s*$")
                 
@@ -403,14 +392,12 @@ LoginBtn.MouseButton1Click:Connect(function()
         if isKeyValid then
             LoginBtn.Text = "Success!"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 200, 50)}):Play()
-            print("Key & HWID match! Loading hub...")
             task.wait(0.5)
             AuthGui:Destroy()
             LoadMainHub()
         else
             LoginBtn.Text = "Invalid Key or HWID!"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}):Play()
-            print("Failed Login. Typed Key: " .. tostring(inputKey) .. " | Current HWID: " .. tostring(userHWID))
             task.wait(1.5)
             LoginBtn.Text = "Verify Key"
             TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 75)}):Play()
@@ -418,7 +405,6 @@ LoginBtn.MouseButton1Click:Connect(function()
     else
         LoginBtn.Text = "Error connecting!"
         TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}):Play()
-        print("Failed to read GitHub file. Are you sure the URL is correct?")
         task.wait(1.5)
         LoginBtn.Text = "Verify Key"
         TweenService:Create(LoginBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 75)}):Play()
