@@ -1,164 +1,157 @@
--- ==========================================
--- AURA HUB V17 - NO WHITELIST VERSION
--- ==========================================
+
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local VirtualUser = game:GetService("VirtualUser")
-
--- ==========================================
--- MAIN HUB FUNCTION
--- ==========================================
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Knit Services
 local KnitServices = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services")
 local ChallengeRemote = KnitServices:WaitForChild("ChallengeService"):WaitForChild("RF"):WaitForChild("ClaimReward")
 local SeasonRemote = KnitServices:WaitForChild("SeasonService"):WaitForChild("RF"):WaitForChild("RequestRankedReward")
 
-local autoTokens, autoStyle, autoYen, autoAbility = false, false, false, false
-local autoAfk = false
-local timeRemaining = -1
-local tokenX = -1
-
-local validStyleIds = {11, 7, 1}
-local validYenIds = {10, 2}
-local validAbilityIds = {8, 4}
+-- Variables
+local autoTokens, autoStyle, autoYen, autoAbility, autoAfk = false, false, false, false, false
 local styleIndex, yenIndex, abilityIndex = 1, 1, 1
+local tokenX = -1
+local validStyleIds, validYenIds, validAbilityIds = {11, 7, 1}, {10, 2}, {8, 4}
 
 -- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AuraHubUI"
-pcall(function() 
-    if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end 
-end)
+pcall(function() ScreenGui.Parent = gethui and gethui() or CoreGui end)
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "AuraHub_Main"
-MainFrame.Parent = ScreenGui
+local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-MainFrame.BackgroundTransparency = 0.15 
 MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
-MainFrame.Size = UDim2.new(0, 280, 0, 40) 
-MainFrame.ClipsDescendants = true 
+MainFrame.Size = UDim2.new(0, 280, 0, 350) 
 MainFrame.Active = true
 MainFrame.Draggable = true 
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+Instance.new("UIStroke", MainFrame).Color = Color3.fromRGB(100, 150, 255)
 
-local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(100, 150, 255); UIStroke.Thickness = 2; UIStroke.Transparency = 0.3
-
+-- Title & Destroy Button
 local Title = Instance.new("TextLabel", MainFrame)
-Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 200, 0, 40)
-Title.Font = Enum.Font.GothamBlack; Title.Text = "AURA HUB (CLEAN)"; Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.TextSize = 16; Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Size = UDim2.new(0, 200, 0, 40); Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Font = Enum.Font.GothamBlack; Title.Text = "AURA HUB V17"; Title.TextColor3 = Color3.new(1, 1, 1); Title.BackgroundTransparency = 1; Title.TextXAlignment = 0
 
 local DestroyBtn = Instance.new("TextButton", MainFrame)
-DestroyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); DestroyBtn.Position = UDim2.new(1, -75, 0, 8); DestroyBtn.Size = UDim2.new(0, 24, 0, 24)
-DestroyBtn.Font = Enum.Font.GothamBold; DestroyBtn.Text = "X"; DestroyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DestroyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); DestroyBtn.Position = UDim2.new(1, -35, 0, 8); DestroyBtn.Size = UDim2.new(0, 24, 0, 24)
+DestroyBtn.Font = Enum.Font.GothamBold; DestroyBtn.Text = "X"; DestroyBtn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", DestroyBtn).CornerRadius = UDim.new(0, 6)
 
-local MinimizeBtn = Instance.new("TextButton", MainFrame)
-MinimizeBtn.BackgroundTransparency = 1; MinimizeBtn.Position = UDim2.new(1, -40, 0, 5); MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-MinimizeBtn.Font = Enum.Font.GothamBold; MinimizeBtn.Text = "-"; MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255); MinimizeBtn.TextSize = 24
-
--- Tabs & Navigation
+-- Navigation Tabs
 local TabBar = Instance.new("Frame", MainFrame)
-TabBar.BackgroundTransparency = 1; TabBar.Position = UDim2.new(0, 10, 0, 40); TabBar.Size = UDim2.new(1, -20, 0, 30)
+TabBar.BackgroundTransparency = 1; TabBar.Position = UDim2.new(0, 10, 0, 45); TabBar.Size = UDim2.new(1, -20, 0, 30)
 
 local function createTabBtn(name, pos)
     local btn = Instance.new("TextButton", TabBar)
     btn.BackgroundColor3 = Color3.fromRGB(25, 25, 40); btn.Position = pos; btn.Size = UDim2.new(0.33, -2, 1, 0)
-    btn.Font = Enum.Font.GothamBold; btn.Text = name; btn.TextColor3 = Color3.fromRGB(150, 150, 150); btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.Font = Enum.Font.GothamBold; btn.Text = name; btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    Instance.new("UICorner", btn)
     return btn
 end
 
 local TabMainBtn = createTabBtn("Main", UDim2.new(0, 0, 0, 0))
 local TabSpinsBtn = createTabBtn("Spins", UDim2.new(0.33, 2, 0, 0))
 local TabAfkBtn = createTabBtn("AFK", UDim2.new(0.66, 4, 0, 0))
-TabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 75); TabMainBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local PageMain = Instance.new("Frame", MainFrame)
-PageMain.BackgroundTransparency = 1; PageMain.Position = UDim2.new(0, 0, 0, 75); PageMain.Size = UDim2.new(1, 0, 1, -75)
-local PageSpins = Instance.new("Frame", MainFrame)
-PageSpins.BackgroundTransparency = 1; PageSpins.Position = UDim2.new(0, 0, 0, 75); PageSpins.Size = UDim2.new(1, 0, 1, -75); PageSpins.Visible = false 
-local PageAfk = Instance.new("Frame", MainFrame)
-PageAfk.BackgroundTransparency = 1; PageAfk.Position = UDim2.new(0, 0, 0, 75); PageAfk.Size = UDim2.new(1, 0, 1, -75); PageAfk.Visible = false 
+local PageMain = Instance.new("Frame", MainFrame); PageMain.Size = UDim2.new(1,0,1,-85); PageMain.Position = UDim2.new(0,0,0,85); PageMain.BackgroundTransparency = 1
+local PageSpins = PageMain:Clone(); PageSpins.Parent = MainFrame; PageSpins.Visible = false
+local PageAfk = PageMain:Clone(); PageAfk.Parent = MainFrame; PageAfk.Visible = false
 
--- CONTENT CREATION (Main/Spins pages same as before)
-local TokensBtn = Instance.new("TextButton", PageMain)
-TokensBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); TokensBtn.Position = UDim2.new(0, 15, 0, 10); TokensBtn.Size = UDim2.new(0, 250, 0, 35)
-TokensBtn.Font = Enum.Font.GothamBold; TokensBtn.Text = "Claim Tokens: OFF"; TokensBtn.TextColor3 = Color3.fromRGB(200, 100, 100); TokensBtn.TextSize = 13
-Instance.new("UICorner", TokensBtn).CornerRadius = UDim.new(0, 6)
+-- ID CALCULATOR / SMART ROW UI
+local function createSmartRow(parent, yPos, btnText, startID)
+    local label = Instance.new("TextLabel", parent)
+    label.BackgroundColor3 = Color3.fromRGB(20, 20, 35); label.Position = UDim2.new(0, 15, 0, yPos); label.Size = UDim2.new(0, 75, 0, 35)
+    label.Font = Enum.Font.GothamBold; label.Text = "ID: " .. startID; label.TextColor3 = Color3.fromRGB(150, 150, 150)
+    Instance.new("UICorner", label)
 
--- AFK PAGE CONTENT (Enhanced for PS99)
-local AfkBtn = Instance.new("TextButton", PageAfk)
-AfkBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); AfkBtn.Position = UDim2.new(0, 15, 0, 10); AfkBtn.Size = UDim2.new(0, 250, 0, 35)
-AfkBtn.Font = Enum.Font.GothamBold; AfkBtn.Text = "Deep Anti-Kick: OFF"; AfkBtn.TextColor3 = Color3.fromRGB(200, 100, 100); AfkBtn.TextSize = 13
-Instance.new("UICorner", AfkBtn).CornerRadius = UDim.new(0, 6)
-
--- TOGGLE LOGIC
-local function tweenColor(object, targetColor, targetTextColor)
-    TweenService:Create(object, TweenInfo.new(0.3), {BackgroundColor3 = targetColor, TextColor3 = targetTextColor}):Play()
+    local btn = Instance.new("TextButton", parent)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); btn.Position = UDim2.new(0, 100, 0, yPos); btn.Size = UDim2.new(0, 165, 0, 35)
+    btn.Font = Enum.Font.GothamBold; btn.Text = btnText .. ": OFF"; btn.TextColor3 = Color3.fromRGB(200, 100, 100)
+    Instance.new("UICorner", btn)
+    return label, btn
 end
 
-local function handleToggle(btn, stateVar, name)
-    local state = not stateVar
-    if state then
-        btn.Text = name .. ": ON"
-        tweenColor(btn, Color3.fromRGB(100, 255, 150), Color3.fromRGB(20, 50, 20))
+-- Spins Page Content
+local StyleLabel, StyleBtn = createSmartRow(PageSpins, 10, "Style Spins", 11)
+local YenLabel, YenBtn = createSmartRow(PageSpins, 55, "Claim Yen", 10)
+local AbilityLabel, AbilityBtn = createSmartRow(PageSpins, 100, "Ability Spins", 8)
+
+-- Main & AFK Content
+local function createSimpleBtn(parent, text, yPos)
+    local btn = Instance.new("TextButton", parent)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45); btn.Position = UDim2.new(0, 15, 0, yPos); btn.Size = UDim2.new(0, 250, 0, 35)
+    btn.Font = Enum.Font.GothamBold; btn.Text = text .. ": OFF"; btn.TextColor3 = Color3.fromRGB(200, 100, 100)
+    Instance.new("UICorner", btn)
+    return btn
+end
+
+local TokensBtn = createSimpleBtn(PageMain, "Claim Tokens", 10)
+local AfkBtn = createSimpleBtn(PageAfk, "Auto-Jump AFK", 10)
+
+-- Logic Functions
+local function fireRank(label, idList, currentIdx)
+    local id = idList[currentIdx]
+    local success, res = pcall(function() return SeasonRemote:InvokeServer(id) end)
+    if not success or res == false then
+        if currentIdx < #idList then 
+            currentIdx = currentIdx + 1
+            label.Text = "ID: " .. idList[currentIdx]
+            label.TextColor3 = Color3.fromRGB(255, 200, 100)
+        end
     else
-        btn.Text = name .. ": OFF"
-        tweenColor(btn, Color3.fromRGB(30, 30, 45), Color3.fromRGB(200, 100, 100))
+        label.Text = "ID: " .. id .. " ✔️"
+        label.TextColor3 = Color3.fromRGB(100, 255, 150)
     end
-    return state
+    return currentIdx
 end
 
--- DEEP ANTI-KICK LOGIC
-AfkBtn.MouseButton1Click:Connect(function()
-    autoAfk = handleToggle(AfkBtn, autoAfk, "Deep Anti-Kick")
-    if autoAfk then
-        -- Kill existing Idled connections
-        pcall(function()
-            for i, v in pairs(getconnections(Players.LocalPlayer.Idled)) do
-                v:Disable()
-            end
-        end)
-        
-        task.spawn(function()
-            while autoAfk do
-                -- Simulate activity
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new())
-                
-                -- Forced Jump
-                if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    Players.LocalPlayer.Character.Humanoid.Jump = true
-                end
-                task.wait(math.random(120, 180)) -- Random wait between 2-3 mins
-            end
-        end)
-    end
+-- Toggles
+TokensBtn.MouseButton1Click:Connect(function() 
+    autoTokens = not autoTokens 
+    TokensBtn.Text = "Claim Tokens: " .. (autoTokens and "ON" or "OFF")
+    TokensBtn.TextColor3 = autoTokens and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(200, 100, 100)
 end)
 
--- Main logic loops (Spins/Tokens) kept intact from your code
-task.spawn(function()
-    while task.wait(1) do
-        if autoStyle then -- (Your logic here) end
-        -- Rest of your looping logic...
-    end
-end)
+StyleBtn.MouseButton1Click:Connect(function() autoStyle = not autoStyle end)
+YenBtn.MouseButton1Click:Connect(function() autoYen = not autoYen end)
+AbilityBtn.MouseButton1Click:Connect(function() autoAbility = not autoAbility end)
+AfkBtn.MouseButton1Click:Connect(function() autoAfk = not autoAfk end)
 
--- Finish Animations
-local fullHeight = 350
-TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, fullHeight)}):Play()
-
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    local targetHeight = isMinimized and 40 or fullHeight
-    MinimizeBtn.Text = isMinimized and "+" or "-"
-    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, targetHeight)}):Play()
-end)
-
+-- Destroy Logic
 DestroyBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+-- Main Loops
+task.spawn(function()
+    while task.wait(0.1) do
+        if autoTokens then pcall(function() ChallengeRemote:InvokeServer(tokenX); tokenX = tokenX - 1 end) end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1.5) do
+        if autoStyle then styleIndex = fireRank(StyleLabel, validStyleIds, styleIndex) end
+        if autoYen then yenIndex = fireRank(YenLabel, validYenIds, yenIndex) end
+        if autoAbility then abilityIndex = fireRank(AbilityLabel, validAbilityIds, abilityIndex) end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(300) do
+        if autoAfk then
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+        end
+    end
+end)
+
+-- Nav Logic
+local function showPage(p) PageMain.Visible = false; PageSpins.Visible = false; PageAfk.Visible = false; p.Visible = true end
+TabMainBtn.MouseButton1Click:Connect(function() showPage(PageMain) end)
+TabSpinsBtn.MouseButton1Click:Connect(function() showPage(PageSpins) end)
+TabAfkBtn.MouseButton1Click:Connect(function() showPage(PageAfk) end)
