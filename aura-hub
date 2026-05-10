@@ -35,7 +35,7 @@ Instance.new("UIStroke", MainFrame).Color = Color3.fromRGB(100, 150, 255)
 -- Title & Destroy Button
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(0, 200, 0, 40); Title.Position = UDim2.new(0, 15, 0, 0)
-Title.Font = Enum.Font.GothamBlack; Title.Text = "AURA HUB V17"; Title.TextColor3 = Color3.new(1, 1, 1); Title.BackgroundTransparency = 1; Title.TextXAlignment = 0
+Title.Font = Enum.Font.GothamBlack; Title.Text = "AURA HUB"; Title.TextColor3 = Color3.new(1, 1, 1); Title.BackgroundTransparency = 1; Title.TextXAlignment = 0
 
 local DestroyBtn = Instance.new("TextButton", MainFrame)
 DestroyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); DestroyBtn.Position = UDim2.new(1, -35, 0, 8); DestroyBtn.Size = UDim2.new(0, 24, 0, 24)
